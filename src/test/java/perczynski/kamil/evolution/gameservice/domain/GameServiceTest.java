@@ -13,10 +13,13 @@ import perczynski.kamil.evolution.gameservice.domain.bets.GameRound;
 import perczynski.kamil.evolution.gameservice.domain.rounds.GameRoundMachine;
 import perczynski.kamil.evolution.gameservice.domain.rounds.GameRoundRepository;
 import perczynski.kamil.evolution.gameservice.domain.rounds.Win;
+import perczynski.kamil.evolution.gameservice.libs.ErrorCodeException;
 import perczynski.kamil.evolution.gameservice.libs.Money;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.Mockito.*;
+import static perczynski.kamil.evolution.gameservice.domain.GameErrorCode.INVALID_BET_AMOUNT;
 import static perczynski.kamil.evolution.gameservice.domain.PlayerFixtures.somePlayer;
 import static perczynski.kamil.evolution.gameservice.domain.bets.BetFixtures.someBet;
 import static perczynski.kamil.evolution.gameservice.libs.MockAnswers.withFirstParameter;
@@ -61,6 +64,25 @@ class GameServiceTest {
     }
 
     @Test
+    void testPlaceInvalidBetAmount() {
+        // given:
+        final Player player = somePlayer()
+                .playerId(nextUuid())
+                .balance(new Money(10_00))
+                .build();
+        final Bet bet = someBet().stake(new Money(-10)).build();
+
+        // when
+        final ErrorCodeException exception = catchThrowableOfType(
+                () -> gameService.placeBet(player.getPlayerId(), bet),
+                ErrorCodeException.class
+        );
+
+        // then:
+        assertThat(exception.getCode()).isEqualTo(INVALID_BET_AMOUNT);
+    }
+
+    @Test
     void testWinMoneyInFreeGame() {
         // given:
         final Player player = somePlayer()
@@ -90,6 +112,7 @@ class GameServiceTest {
         // given:
         final Player player = somePlayer()
                 .playerId(nextUuid())
+                .freeRoundAvailable(true)
                 .build();
 
         final Bet bet = someBet().build();
@@ -97,6 +120,7 @@ class GameServiceTest {
 
         when(playerRepository.find(any())).thenReturn(player);
         when(gameRoundMachine.drawWin(any())).thenReturn(win);
+
         when(playerRepository.save(any())).thenAnswer(withFirstParameter());
         when(gameRoundRepository.save(any())).thenAnswer(withFirstParameter());
 
@@ -106,9 +130,9 @@ class GameServiceTest {
         // then:
         final Player updatedPlayer = captureUpdatedPlayer(playerRepository);
 
-        assertThat(updatedPlayer.getBalance())
-                .isEqualTo(gameRound.getNextBalance())
-                .isEqualTo(player.getBalance());
+        assertThat(gameRound.getNextBalance())
+                .isEqualTo(player.getBalance())
+                .isEqualTo(updatedPlayer.getBalance());
 
         assertThat(updatedPlayer.isFreeRoundAvailable()).isFalse();
     }

@@ -21,18 +21,20 @@ import static perczynski.kamil.evolution.gameservice.libs.Uuids.nextUuid;
 @RequiredArgsConstructor
 public class GameService {
 
+    private static final Money DEFAULT_INITIAL_BALANCE = new Money(5000_00);
+
     private final PlayerRepository playerRepository;
     private final GameRoundRepository gameRoundRepository;
     private final GameRoundMachine gameRoundMachine;
     private final BetOperations betOperations;
 
     public Player registerPlayer() {
-        String playerId = nextUuid();
+        final String playerId = nextUuid();
         log.info("Registering new player: {}", playerId);
 
         return playerRepository.save(
                 Player.builder()
-                        .balance(new Money(5000_00))
+                        .balance(DEFAULT_INITIAL_BALANCE)
                         .freeRoundAvailable(false)
                         .playerId(playerId)
                         .build()
